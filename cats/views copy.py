@@ -1,10 +1,9 @@
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, viewsets
+from rest_framework import viewsets
 # from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.throttling import ScopedRateThrottle  # AnonRateThrottle
 
 from .models import Achievement, Cat, User
-# from .pagination import CatsPagination
+from .pagination import CatsPagination
 from .permissions import OwnerOrReadOnly  # ReadOnly
 from .serializers import AchievementSerializer, CatSerializer, UserSerializer
 from .throttling import WorkingHoursRateThrottle
@@ -13,20 +12,23 @@ from .throttling import WorkingHoursRateThrottle
 class CatViewSet(viewsets.ModelViewSet):
     queryset = Cat.objects.all()
     serializer_class = CatSerializer
-    permission_classes = (OwnerOrReadOnly,)
-    # Указываем фильтрующий бэкенд DjangoFilterBackend
-    # Из библиотеки django-filter
-    # Добавим в кортеж ещё один бэкенд
-    filter_backends = (DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter)
-    # Временно отключим пагинацию на уровне вьюсета, 
-    # так будет удобнее настраивать фильтрацию
-    pagination_class = None
-    # Фильтровать будем по полям color и birth_year модели Cat
-    filterset_fields = ('color', 'birth_year')
-    search_fields = ('name',) 
-    ordering_fields = ('name', 'birth_year')
-    ordering = ('birth_year',)
+    # Устанавливаем разрешение
+    permission_classes = (OwnerOrReadOnly,)  # ReadOnly
 
+    # Даже если на уровне проекта установлен PageNumberPagination
+    # Для котиков будет работать LimitOffsetPagination
+    # pagination_class = LimitOffsetPagination
+
+    # Вот он наш собственный класс пагинации с page_size=20
+    pagination_class = CatsPagination
+
+    # Подключили класс AnonRateThrottle
+    # throttle_classes = (AnonRateThrottle,)
+    # Для любых пользователей установим кастомный лимит 1 запрос в минуту
+    # throttle_scope = 'low_request'
+
+    # Если кастомный тротлинг-класс вернёт True - запросы будут обработаны
+    # Если он вернёт False - все запросы будут отклонены
     throttle_classes = (WorkingHoursRateThrottle, ScopedRateThrottle)
     # А далее применится лимит low_request
     throttle_scope = 'low_request'
